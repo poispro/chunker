@@ -4,7 +4,7 @@ A lightweight CLI tool to slice large files/apps into chunks (and unslice them b
 
 Features:
 
-**Slice** - slice file/folders into chunks
+**Slice** - <sub>slice file/folders into chunks</sub>
 
 **Weld** - weld chunks back into files/folders
 
