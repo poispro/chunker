@@ -19,7 +19,8 @@ A lightweight CLI tool to slice large files/apps into chunks (and unslice them b
 
 
 <ins>**Install:**
+```
+brew tap poispro/chunker
 
-`brew tap poispro/chunker`
-
-`brew install chunker`
+brew install chunker
+```
