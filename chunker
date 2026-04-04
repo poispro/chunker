@@ -2,43 +2,79 @@
 
 CONFIG_DIR="$HOME/ChunkerData"
 CONFIG_FILE="$CONFIG_DIR/.chunker_conf"
-C_CYAN='\033[0;96m'; C_GREEN='\033[0;92m'; C_RED='\033[0;91m'; C_NONE='\033[0m'
 D_UNIT="MB"; D_AUTO="ON"; D_SLICE="$CONFIG_DIR/Slice"; D_WELD="$CONFIG_DIR/Weld"
+D_BG="Default"; D_PRI="Cyan"; D_SEC="Default"
 
 load_config() {
     mkdir -p "$CONFIG_DIR" "$D_SLICE" "$D_WELD"
-    if [ -f "$CONFIG_FILE" ]; then 
-        source "$CONFIG_FILE"
-    else 
-        UNIT="$D_UNIT"; AUTO_OPEN="$D_AUTO"; SLICE_PATH="$D_SLICE"; WELD_PATH="$D_WELD"
-    fi
+    if [ -f "$CONFIG_FILE" ]; then source "$CONFIG_FILE"
+    else UNIT="$D_UNIT"; AUTO_OPEN="$D_AUTO"; SLICE_PATH="$D_SLICE"; WELD_PATH="$D_WELD"; T_BG="$D_BG"; T_PRI="$D_PRI"; T_SEC="$D_SEC"; fi
+    
+    [[ -z "$T_BG" ]] && T_BG="$D_BG"
+    [[ -z "$T_PRI" ]] && T_PRI="$D_PRI"
+    [[ -z "$T_SEC" ]] && T_SEC="$D_SEC"
+    
     mkdir -p "$SLICE_PATH" "$WELD_PATH"
+    apply_theme
 }
 
 save_config() {
     mkdir -p "$CONFIG_DIR"
     { 
-        echo "UNIT=\"$UNIT\""
-        echo "AUTO_OPEN=\"$AUTO_OPEN\""
-        echo "SLICE_PATH=\"$SLICE_PATH\""
-        echo "WELD_PATH=\"$WELD_PATH\""
+        echo "UNIT=\"$UNIT\""; echo "AUTO_OPEN=\"$AUTO_OPEN\""; 
+        echo "SLICE_PATH=\"$SLICE_PATH\""; echo "WELD_PATH=\"$WELD_PATH\""
+        echo "T_BG=\"$T_BG\""; echo "T_PRI=\"$T_PRI\""; echo "T_SEC=\"$T_SEC\""
     } > "$CONFIG_FILE"
+    apply_theme
+}
+
+apply_theme() {
+    local bg_code=""; local pri_code=""; local sec_code=""
+    case "$T_BG" in
+        "Black") bg_code="\033[40m" ;; "Red") bg_code="\033[41m" ;; "Orange") bg_code="\033[48;5;208m" ;;
+        "Yellow") bg_code="\033[43m" ;; "Green") bg_code="\033[42m" ;; "Blue") bg_code="\033[44m" ;;
+        "Indigo") bg_code="\033[48;5;54m" ;; "Violet") bg_code="\033[45m" ;; "White") bg_code="\033[107m" ;;
+        "Brown") bg_code="\033[48;5;94m" ;; *) bg_code="\033[49m" ;;
+    esac
+    case "$T_PRI" in
+        "Black") pri_code="\033[1;90m" ;; "Red") pri_code="\033[1;91m" ;; "Orange") pri_code="\033[1;38;5;208m" ;;
+        "Yellow") pri_code="\033[1;93m" ;; "Green") pri_code="\033[1;92m" ;; "Blue") pri_code="\033[1;94m" ;;
+        "Indigo") pri_code="\033[1;38;5;54m" ;; "Violet") pri_code="\033[1;95m" ;; "White") pri_code="\033[1;97m" ;;
+        "Brown") pri_code="\033[1;38;5;94m" ;; "Cyan") pri_code="\033[1;96m" ;; *) pri_code="\033[1;39m" ;;
+    esac
+    case "$T_SEC" in
+        "Black") sec_code="\033[0;90m" ;; "Red") sec_code="\033[0;91m" ;; "Orange") sec_code="\033[0;38;5;208m" ;;
+        "Yellow") sec_code="\033[0;93m" ;; "Green") sec_code="\033[0;92m" ;; "Blue") sec_code="\033[0;94m" ;;
+        "Indigo") sec_code="\033[0;38;5;54m" ;; "Violet") sec_code="\033[0;95m" ;; "White") sec_code="\033[0;97m" ;;
+        "Brown") sec_code="\033[0;38;5;94m" ;; "Cyan") sec_code="\033[0;96m" ;; *) sec_code="\033[0;39m" ;;
+    esac
+    C_BG="$bg_code"; C_PRI="$pri_code"; C_SEC="$sec_code"; C_NONE="\033[0m${C_BG}" 
+    C_RED="\033[1;91m"; C_GREEN="\033[1;92m"; C_RESET_ALL="\033[0m"
+}
+
+draw_progress() {
+    local current=$1; local total=$2
+    local percent=$((current * 100 / total))
+    local filled=$((percent / 4)); local empty=$((25 - filled))
+    printf "\r${C_PRI}Progress: [${C_GREEN}"
+    [[ $filled -gt 0 ]] && printf "%${filled}s" | tr ' ' '#'
+    printf "${C_NONE}${C_BG}"
+    [[ $empty -gt 0 ]] && printf "%${empty}s" | tr ' ' '-'
+    printf "${C_PRI}] %d%%${C_NONE}" "$percent"
 }
 
 run_main_menu() {
-    local selected=0
-    local options=("Slice" "Weld" "Settings" "Exit")
+    local selected=0; local options=("Slice" "Weld" "Settings" "Exit")
     while true; do
         tput civis
-        printf "\033[H\033[J${C_CYAN}--- CHUNKER v2.0.0 ---${C_NONE}\n\n"
+        printf "${C_BG}\033[H\033[J${C_PRI}--- CHUNKER v2.1.0 ---${C_NONE}\n\n"
         for i in "${!options[@]}"; do
-            if [[ $i -eq $selected ]]; then printf "${C_CYAN}> %s${C_NONE}\n" "${options[$i]}"
-            else printf "  %s\n" "${options[$i]}"; fi
+            if [[ $i -eq $selected ]]; then printf "${C_PRI}> %s${C_NONE}\n" "${options[$i]}"
+            else printf "${C_SEC}  %s${C_NONE}\n" "${options[$i]}"; fi
         done
         read -rsn1 key
         [[ $key == $'\x1b' ]] && { read -rsn2 key; [[ $key == "[A" ]] && ((selected--)); [[ $key == "[B" ]] && ((selected++)); }
-        [[ $selected -lt 0 ]] && selected=3
-        [[ $selected -gt 3 ]] && selected=0
+        [[ $selected -lt 0 ]] && selected=3; [[ $selected -gt 3 ]] && selected=0
         [[ $key == "" ]] && tput cnorm && return $selected
     done
 }
@@ -46,81 +82,244 @@ run_main_menu() {
 run_settings_menu() {
     local selected=0
     while true; do
-        local options=("Back" "Unit: $UNIT" "Auto-Open: $AUTO_OPEN" "Change Slice Path" "Change Weld Path" "Restore Defaults")
+        local options=("Back" "Unit: $UNIT" "Auto Open Finder: $AUTO_OPEN" "Paths >" "Other Settings >" "Restore Defaults")
         tput civis
-        printf "\033[H\033[J${C_CYAN}--- SETTINGS ---${C_NONE}\n\n"
+        printf "${C_BG}\033[H\033[J${C_PRI}--- SETTINGS ---${C_NONE}\n\n"
         for i in "${!options[@]}"; do
-            if [[ $i -eq $selected ]]; then printf "${C_CYAN}> %s${C_NONE}\n" "${options[$i]}"
-            else printf "  %s\n" "${options[$i]}"; fi
+            if [[ $i -eq 5 ]]; then
+                if [[ $i -eq $selected ]]; then printf "${C_PRI}> ${C_RED}%s${C_NONE}\n" "${options[$i]}"
+                else printf "  ${C_RED}%s${C_NONE}\n" "${options[$i]}"; fi
+            else
+                if [[ $i -eq $selected ]]; then printf "${C_PRI}> %s${C_NONE}\n" "${options[$i]}"
+                else printf "${C_SEC}  %s${C_NONE}\n" "${options[$i]}"; fi
+            fi
         done
         read -rsn1 key
         [[ $key == $'\x1b' ]] && { read -rsn2 key; [[ $key == "[A" ]] && ((selected--)); [[ $key == "[B" ]] && ((selected++)); }
-        [[ $selected -lt 0 ]] && selected=5
-        [[ $selected -gt 5 ]] && selected=0
+        [[ $selected -lt 0 ]] && selected=5; [[ $selected -gt 5 ]] && selected=0
         if [[ $key == "" ]]; then
             tput cnorm
             case $selected in
                 0) return ;;
                 1) [[ "$UNIT" == "KB" ]] && UNIT="MB" || { [[ "$UNIT" == "MB" ]] && UNIT="GB" || UNIT="KB"; }; save_config ;;
                 2) [[ "$AUTO_OPEN" == "ON" ]] && AUTO_OPEN="OFF" || AUTO_OPEN="ON"; save_config ;;
-                3) read -p "New Slice Path: " p; [[ -n "$p" ]] && SLICE_PATH=$(echo "$p" | sed "s/'//g; s/\"//g; s/ $//"); save_config ;;
-                4) read -p "New Weld Path: " p; [[ -n "$p" ]] && WELD_PATH=$(echo "$p" | sed "s/'//g; s/\"//g; s/ $//"); save_config ;;
-                5) UNIT="$D_UNIT"; AUTO_OPEN="$D_AUTO"; SLICE_PATH="$D_SLICE"; WELD_PATH="$D_WELD"; save_config ;;
+                3) run_paths_menu ;;
+                4) run_other_settings_menu ;;
+                5) run_restore_defaults ;;
             esac
         fi
     done
 }
 
+run_paths_menu() {
+    local selected=0; local options=("Back" "Change Slice Path" "Change Weld Path")
+    while true; do
+        tput civis
+        printf "${C_BG}\033[H\033[J${C_PRI}--- PATHS ---${C_NONE}\n\n"
+        for i in "${!options[@]}"; do
+            if [[ $i -eq $selected ]]; then printf "${C_PRI}> %s${C_NONE}\n" "${options[$i]}"
+            else printf "${C_SEC}  %s${C_NONE}\n" "${options[$i]}"; fi
+            if [[ $i -eq 1 ]]; then printf "${C_SEC}    ($SLICE_PATH)${C_NONE}\n"; fi
+            if [[ $i -eq 2 ]]; then printf "${C_SEC}    ($WELD_PATH)${C_NONE}\n"; fi
+        done
+        read -rsn1 key
+        [[ $key == $'\x1b' ]] && { read -rsn2 key; [[ $key == "[A" ]] && ((selected--)); [[ $key == "[B" ]] && ((selected++)); }
+        [[ $selected -lt 0 ]] && selected=2; [[ $selected -gt 2 ]] && selected=0
+        if [[ $key == "" ]]; then
+            tput cnorm
+            case $selected in
+                0) return ;;
+                1) printf "\n${C_PRI}New Slice Path: ${C_NONE}"; read p; [[ -n "$p" ]] && SLICE_PATH=$(echo "$p" | sed "s/'//g; s/\"//g; s/ $//"); save_config ;;
+                2) printf "\n${C_PRI}New Weld Path: ${C_NONE}"; read p; [[ -n "$p" ]] && WELD_PATH=$(echo "$p" | sed "s/'//g; s/\"//g; s/ $//"); save_config ;;
+            esac
+        fi
+    done
+}
+
+run_other_settings_menu() {
+    local selected=0; local options=("Back" "Theme >")
+    while true; do
+        tput civis
+        printf "${C_BG}\033[H\033[J${C_PRI}--- OTHER SETTINGS ---${C_NONE}\n\n"
+        for i in "${!options[@]}"; do
+            if [[ $i -eq $selected ]]; then printf "${C_PRI}> %s${C_NONE}\n" "${options[$i]}"
+            else printf "${C_SEC}  %s${C_NONE}\n" "${options[$i]}"; fi
+        done
+        read -rsn1 key
+        [[ $key == $'\x1b' ]] && { read -rsn2 key; [[ $key == "[A" ]] && ((selected--)); [[ $key == "[B" ]] && ((selected++)); }
+        [[ $selected -lt 0 ]] && selected=1; [[ $selected -gt 1 ]] && selected=0
+        if [[ $key == "" ]]; then
+            tput cnorm
+            case $selected in
+                0) return ;;
+                1) run_theme_menu ;;
+            esac
+        fi
+    done
+}
+
+run_theme_menu() {
+    local selected=0
+    while true; do
+        local options=("Back" "Background Color ($T_BG)" "Primary Text ($T_PRI)" "Secondary Text ($T_SEC)")
+        tput civis
+        printf "${C_BG}\033[H\033[J${C_PRI}--- THEME ---${C_NONE}\n\n"
+        for i in "${!options[@]}"; do
+            if [[ $i -eq $selected ]]; then printf "${C_PRI}> %s${C_NONE}\n" "${options[$i]}"
+            else printf "${C_SEC}  %s${C_NONE}\n" "${options[$i]}"; fi
+        done
+        read -rsn1 key
+        [[ $key == $'\x1b' ]] && { read -rsn2 key; [[ $key == "[A" ]] && ((selected--)); [[ $key == "[B" ]] && ((selected++)); }
+        [[ $selected -lt 0 ]] && selected=3; [[ $selected -gt 3 ]] && selected=0
+        if [[ $key == "" ]]; then
+            case $selected in
+                0) return ;;
+                1) pick_color "BG" ;;
+                2) pick_color "PRI" ;;
+                3) pick_color "SEC" ;;
+            esac
+        fi
+    done
+}
+
+pick_color() {
+    local target=$1; local selected=0
+    local colors=("Default" "Red" "Orange" "Yellow" "Green" "Blue" "Indigo" "Violet" "Black" "White" "Brown")
+    while true; do
+        tput civis
+        printf "${C_BG}\033[H\033[J${C_PRI}--- SELECT COLOR ---${C_NONE}\n\n"
+        for i in "${!colors[@]}"; do
+            if [[ $i -eq $selected ]]; then printf "${C_PRI}> %s${C_NONE}\n" "${colors[$i]}"
+            else printf "${C_SEC}  %s${C_NONE}\n" "${colors[$i]}"; fi
+        done
+        read -rsn1 key
+        [[ $key == $'\x1b' ]] && { read -rsn2 key; [[ $key == "[A" ]] && ((selected--)); [[ $key == "[B" ]] && ((selected++)); }
+        [[ $selected -lt 0 ]] && selected=10; [[ $selected -gt 10 ]] && selected=0
+        if [[ $key == "" ]]; then
+            case $target in
+                "BG") T_BG="${colors[$selected]}" ;;
+                "PRI") T_PRI="${colors[$selected]}" ;;
+                "SEC") T_SEC="${colors[$selected]}" ;;
+            esac
+            save_config; return
+        fi
+    done
+}
+
+run_restore_defaults() {
+    local selected=1
+    local options=("Restore Defaults" "Cancel")
+    while true; do
+        tput civis
+        printf "${C_BG}\033[H\033[J${C_RED}--- RESTORE DEFAULTS ---${C_NONE}\n\n"
+        printf "${C_PRI}Do you want to restore default settings?${C_NONE}\n\n"
+        for i in "${!options[@]}"; do
+            if [[ $i -eq $selected ]]; then printf "${C_PRI}> %s${C_NONE}\n" "${options[$i]}"
+            else printf "${C_SEC}  %s${C_NONE}\n" "${options[$i]}"; fi
+        done
+        read -rsn1 key
+        [[ $key == $'\x1b' ]] && { read -rsn2 key; [[ $key == "[A" ]] && ((selected--)); [[ $key == "[B" ]] && ((selected++)); }
+        [[ $selected -lt 0 ]] && selected=1; [[ $selected -gt 1 ]] && selected=0
+        if [[ $key == "" ]]; then
+            if [[ $selected -eq 0 ]]; then
+                UNIT="$D_UNIT"; AUTO_OPEN="$D_AUTO"; SLICE_PATH="$D_SLICE"; WELD_PATH="$D_WELD"
+                T_BG="$D_BG"; T_PRI="$D_PRI"; T_SEC="$D_SEC"
+                save_config
+            fi
+            return
+        fi
+    done
+}
+
 do_slice() {
-    printf "\033[H\033[J${C_CYAN}--- SLICE ---${C_NONE}\n"
-    read -p "Drag source: " SRC; SRC=$(echo "$SRC" | sed "s/'//g; s/\"//g; s/ $//")
+    printf "${C_BG}\033[H\033[J${C_PRI}--- SLICE ---${C_NONE}\n"
+    printf "${C_PRI}Drag source: ${C_NONE}"; read -r SRC
+    SRC=$(echo "$SRC" | sed "s/'//g; s/\"//g; s/[[:space:]]*$//; s/\\\\//g")
     [[ ! -e "$SRC" ]] && return
-    read -p "Size ($UNIT): " VAL
-    case "$UNIT" in "KB") M=1000 ;; "MB") M=1000000 ;; "GB") M=1000000000 ;; esac
-    B=$(echo "$VAL * $M" | bc | cut -d'.' -f1)
     
+    printf "${C_PRI}Size ($UNIT): ${C_NONE}"; read -r VAL
+    # FORCE FINDER MATH: 10MB = 10,000,000 bytes. 
+    case "$UNIT" in 
+        "KB") M=1000 ;; 
+        "MB") M=1000000 ;; 
+        "GB") M=1000000000 ;; 
+    esac
+    
+    B=$(echo "$VAL * $M" | bc | cut -d'.' -f1)
+    [[ -z "$B" || "$B" -le 0 ]] && B=10000000
+
     BNAME=$(basename "$SRC")
     DIRNAME=$(dirname "$SRC")
     DEST="$SLICE_PATH/$BNAME-chunks"
     mkdir -p "$DEST"
+
+    # FOLDER/APP: Pack to a temp file first so the slice is bit-perfect
+    if [[ -d "$SRC" ]]; then
+        printf "\n${C_PRI}Bundling Directory...${C_NONE}\n"
+        WORK_FILE="$DEST/.processing.tmp"
+        tar -cf "$WORK_FILE" -C "$DIRNAME" "$BNAME"
+    else
+        WORK_FILE="$SRC"
+    fi
+
+    # 4-Digit suffix for 1000+ chunks
+    DIGITS=4
+    FSIZE=$(stat -f%z "$WORK_FILE")
+    TOTAL_CHUNKS=$(( (FSIZE + B - 1) / B ))
+
+    printf "\n${C_PRI}Slicing into $TOTAL_CHUNKS chunks...${C_NONE}\n"
+    split -a "$DIGITS" -d -b "$B" "$WORK_FILE" "$DEST/$BNAME.chunk."
     
-    printf "\n${C_GREEN}Slicing...${C_NONE}\n"
-    # Added --format=posix to fix 'Special header too large' error
-    tar --format=posix -czf - -C "$DIRNAME" "$BNAME" | split -a 5 -b "$B" - "$DEST/chunk_"
-    
-    [[ $? -eq 0 ]] && printf "\n${C_GREEN}DONE!${C_NONE}\n" || printf "\n${C_RED}FAILED!${C_NONE}\n"
+    if [[ $? -eq 0 ]]; then
+        [[ -f "$DEST/.processing.tmp" ]] && rm "$DEST/.processing.tmp"
+        draw_progress 100 100
+        printf "\n\n${C_GREEN}SUCCESS! Chunks are exactly $VAL $UNIT.${C_NONE}\n"
+    else
+        printf "\n\n${C_RED}FAILED!${C_NONE}\n"
+    fi
     [[ "$AUTO_OPEN" == "ON" ]] && open "$DEST"
-    read -p "Press Enter..." dummy
+    printf "${C_PRI}Press Enter...${C_NONE}"; read -r dummy
 }
 
 do_weld() {
-    printf "\033[H\033[J${C_CYAN}--- WELD ---${C_NONE}\n"
-    read -p "Drag folder: " FLD; FLD=$(echo "$FLD" | sed "s/'//g; s/\"//g; s/ $//")
+    printf "${C_BG}\033[H\033[J${C_PRI}--- WELD ---${C_NONE}\n"
+    printf "${C_PRI}Drag folder: ${C_NONE}"; read -r FLD
+    FLD=$(echo "$FLD" | sed "s/'//g; s/\"//g; s/[[:space:]]*$//; s/\\\\//g")
     [[ ! -d "$FLD" ]] && return
-    
+
+    local folder_name=$(basename "$FLD")
+    local original_name="${folder_name%-chunks}"
+    local output_file="$WELD_PATH/$original_name"
     mkdir -p "$WELD_PATH"
-    TEMP_WELD="$WELD_PATH/processing_weld.tgz"
-    printf "\n${C_GREEN}Welding...${C_NONE}\n"
-    
-    find "$FLD" -name "chunk_*" -print0 | sort -zV | xargs -0 cat > "$TEMP_WELD"
-    
-    if [[ -s "$TEMP_WELD" ]]; then
-        # POSIX format is automatically detected during extraction
-        tar -xzf "$TEMP_WELD" -C "$WELD_PATH"
-        RES=$?
-        rm "$TEMP_WELD"
+
+    printf "\n${C_PRI}Welding: $original_name${C_NONE}\n"
+
+    (
+        cd "$FLD" || exit
+        > "$output_file.tmp"
+        # Sort -V handles 0001, 0010, 0100 correctly
+        for f in $(ls *.chunk.* | sort -V); do
+            cat "$f" >> "$output_file.tmp"
+        done
+    )
+
+    # If it's a tar archive (Folders/Apps), extract it. Otherwise move it.
+    if file "$output_file.tmp" | grep -q "tar archive"; then
+        tar -xf "$output_file.tmp" -C "$WELD_PATH"
+        rm "$output_file.tmp"
     else
-        RES=1
+        mv "$output_file.tmp" "$output_file"
     fi
 
-    if [[ $RES -eq 0 ]]; then
-        printf "\n${C_GREEN}DONE!${C_NONE}\n"
-        [[ "$AUTO_OPEN" == "ON" ]] && open "$WELD_PATH"
+    if [[ $? -eq 0 ]]; then
+        draw_progress 100 100
+        chmod -R 755 "$output_file" 2>/dev/null
+        printf "\n\n${C_GREEN}DONE! Restoration Successful.${C_NONE}\n"
     else
-        printf "\n${C_RED}FAILED: Header error or corrupted archive.${C_NONE}\n"
-        [ -f "$TEMP_WELD" ] && rm "$TEMP_WELD"
+        printf "\n\n${C_RED}FAILED!${C_NONE}\n"
     fi
-    read -p "Press Enter..." dummy
+    [[ "$AUTO_OPEN" == "ON" ]] && open "$WELD_PATH"
+    printf "${C_PRI}Press Enter...${C_NONE}"; read -r dummy
 }
 
 load_config
@@ -130,6 +329,6 @@ while true; do
         0) do_slice ;;
         1) do_weld ;;
         2) run_settings_menu ;;
-        3) printf "\033[H\033[J"; exit 0 ;;
+        3) printf "${C_RESET_ALL}\033[H\033[J"; exit 0 ;;
     esac
 done
