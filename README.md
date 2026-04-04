@@ -4,7 +4,7 @@
 
 ### **Features:**
 
-###### Slice - slice file/folders into chunks
+##### Slice - slice file/folders into chunks
 
 #### Weld - weld chunks back into files/folders
 
