@@ -3,19 +3,18 @@ Chunker
 A lightweight CLI tool to slice large files/apps into chunks (and unslice them back) for Discord or Cloud uploads.
 
 <ins>**Features:**
-```
-Slice - slice file/folders into chunks
 
-Weld - weld chunks back into files/folders
+`Slice - slice file/folders into chunks`
 
-Unit - changes the Unit when slicing (KB, MB, GB)
+`Weld - weld chunks back into files/folders`
 
-Auto-Open - automatically open Finder after slicing/welding
+`Unit - changes the Unit when slicing (KB, MB, GB)`
 
-Change Slice Path - change the path where sliced files/folders end up at
+`Auto-Open - automatically open Finder after slicing/welding`
 
-Change Weld Path - change the path where welded files/folders end up at
-```
+`Change Slice Path - change the path where sliced files/folders end up at`
+
+`Change Weld Path - change the path where welded files/folders end up at`
 
 
 
