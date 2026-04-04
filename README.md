@@ -20,7 +20,5 @@
 
 ## **Install:**
 ```
-brew tap poispro/chunker
-
-brew install chunker
+brew tap poispro/chunker; brew install chunker
 ```
