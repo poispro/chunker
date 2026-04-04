@@ -67,7 +67,7 @@ run_main_menu() {
     local selected=0; local options=("Slice" "Weld" "Settings" "Exit")
     while true; do
         tput civis
-        printf "${C_BG}\033[H\033[J${C_PRI}--- CHUNKER v2.1.0 ---${C_NONE}\n\n"
+        printf "${C_BG}\033[H\033[J${C_PRI}--- CHUNKER v2.1.1 ---${C_NONE}\n\n"
         for i in "${!options[@]}"; do
             if [[ $i -eq $selected ]]; then printf "${C_PRI}> %s${C_NONE}\n" "${options[$i]}"
             else printf "${C_SEC}  %s${C_NONE}\n" "${options[$i]}"; fi
@@ -208,7 +208,7 @@ pick_color() {
 
 run_restore_defaults() {
     local selected=1
-    local options=("Restore Defaults" "Cancel")
+    local options=("Yes, Restore Defaults" "No, Cancel")
     while true; do
         tput civis
         printf "${C_BG}\033[H\033[J${C_RED}--- RESTORE DEFAULTS ---${C_NONE}\n\n"
@@ -232,48 +232,45 @@ run_restore_defaults() {
 }
 
 do_slice() {
-    printf "${C_BG}\033[H\033[J${C_PRI}--- SLICE ---${C_NONE}\n"
+    printf "${C_BG}\033[H\033[J${C_PRI}--- INDUSTRIAL SLICE ---${C_NONE}\n"
     printf "${C_PRI}Drag source: ${C_NONE}"; read -r SRC
     SRC=$(echo "$SRC" | sed "s/'//g; s/\"//g; s/[[:space:]]*$//; s/\\\\//g")
     [[ ! -e "$SRC" ]] && return
     
     printf "${C_PRI}Size ($UNIT): ${C_NONE}"; read -r VAL
-    # FORCE FINDER MATH: 10MB = 10,000,000 bytes. 
     case "$UNIT" in 
-        "KB") M=1000 ;; 
-        "MB") M=1000000 ;; 
-        "GB") M=1000000000 ;; 
+        "KB") M=1024 ;; 
+        "MB") M=1048576 ;; 
+        "GB") M=1073741824 ;; 
     esac
-    
-    B=$(echo "$VAL * $M" | bc | cut -d'.' -f1)
-    [[ -z "$B" || "$B" -le 0 ]] && B=10000000
+    B=$(( VAL * M ))
 
     BNAME=$(basename "$SRC")
     DIRNAME=$(dirname "$SRC")
     DEST="$SLICE_PATH/$BNAME-chunks"
     mkdir -p "$DEST"
 
-    # FOLDER/APP: Pack to a temp file first so the slice is bit-perfect
     if [[ -d "$SRC" ]]; then
-        printf "\n${C_PRI}Bundling Directory...${C_NONE}\n"
+        printf "\n${C_PRI}Folder detected. Archiving first so it can be sliced...${C_NONE}\n"
         WORK_FILE="$DEST/.processing.tmp"
         tar -cf "$WORK_FILE" -C "$DIRNAME" "$BNAME"
     else
         WORK_FILE="$SRC"
     fi
 
-    # 4-Digit suffix for 1000+ chunks
-    DIGITS=4
     FSIZE=$(stat -f%z "$WORK_FILE")
     TOTAL_CHUNKS=$(( (FSIZE + B - 1) / B ))
+    
+    DIGITS=4
 
-    printf "\n${C_PRI}Slicing into $TOTAL_CHUNKS chunks...${C_NONE}\n"
+    printf "\n${C_PRI}Slicing $BNAME into $TOTAL_CHUNKS chunks...${C_NONE}\n"
+
     split -a "$DIGITS" -d -b "$B" "$WORK_FILE" "$DEST/$BNAME.chunk."
     
     if [[ $? -eq 0 ]]; then
         [[ -f "$DEST/.processing.tmp" ]] && rm "$DEST/.processing.tmp"
         draw_progress 100 100
-        printf "\n\n${C_GREEN}SUCCESS! Chunks are exactly $VAL $UNIT.${C_NONE}\n"
+        printf "\n\n${C_GREEN}SUCCESS! Chunks created perfectly.${C_NONE}\n"
     else
         printf "\n\n${C_RED}FAILED!${C_NONE}\n"
     fi
@@ -282,42 +279,55 @@ do_slice() {
 }
 
 do_weld() {
-    printf "${C_BG}\033[H\033[J${C_PRI}--- WELD ---${C_NONE}\n"
+    printf "${C_BG}\033[H\033[J${C_PRI}--- BARE METAL WELD ---${C_NONE}\n"
     printf "${C_PRI}Drag folder: ${C_NONE}"; read -r FLD
+    
     FLD=$(echo "$FLD" | sed "s/'//g; s/\"//g; s/[[:space:]]*$//; s/\\\\//g")
     [[ ! -d "$FLD" ]] && return
 
     local folder_name=$(basename "$FLD")
     local original_name="${folder_name%-chunks}"
-    local output_file="$WELD_PATH/$original_name"
+    local output_tmp="$WELD_PATH/$original_name.tmp"
     mkdir -p "$WELD_PATH"
 
-    printf "\n${C_PRI}Welding: $original_name${C_NONE}\n"
+    printf "\n${C_PRI}Welding chunks from: $folder_name...${C_NONE}\n"
+    
+    > "$output_tmp"
+    
+    local chunks=()
+    while IFS= read -r line; do
+        chunks+=("$line")
+    done < <(find "$FLD" -maxdepth 1 -type f -name "*.chunk.*" | sort -V)
 
-    (
-        cd "$FLD" || exit
-        > "$output_file.tmp"
-        # Sort -V handles 0001, 0010, 0100 correctly
-        for f in $(ls *.chunk.* | sort -V); do
-            cat "$f" >> "$output_file.tmp"
-        done
-    )
+    for chunk in "${chunks[@]}"; do
+        cat "$chunk" >> "$output_tmp"
+    done
 
-    # If it's a tar archive (Folders/Apps), extract it. Otherwise move it.
-    if file "$output_file.tmp" | grep -q "tar archive"; then
-        tar -xf "$output_file.tmp" -C "$WELD_PATH"
-        rm "$output_file.tmp"
+    if [[ ! -s "$output_tmp" ]]; then
+        printf "\n\n${C_RED}FAILED: No data found in chunks!${C_NONE}\n"
+        rm -f "$output_tmp"
+        printf "${C_PRI}Press Enter...${C_NONE}"; read -r dummy
+        return
+    fi
+
+    if file "$output_tmp" | grep -q "tar archive"; then
+        printf "${C_PRI}Extracting folder contents...${C_NONE}\n"
+        tar -xf "$output_tmp" -C "$WELD_PATH"
+        rm "$output_tmp"
+        local final_out="$WELD_PATH/$original_name"
     else
-        mv "$output_file.tmp" "$output_file"
+        mv "$output_tmp" "$WELD_PATH/$original_name"
+        local final_out="$WELD_PATH/$original_name"
     fi
 
     if [[ $? -eq 0 ]]; then
         draw_progress 100 100
-        chmod -R 755 "$output_file" 2>/dev/null
+        chmod -R 755 "$final_out" 2>/dev/null
         printf "\n\n${C_GREEN}DONE! Restoration Successful.${C_NONE}\n"
     else
-        printf "\n\n${C_RED}FAILED!${C_NONE}\n"
+        printf "\n\n${C_RED}FAILED: Extraction error.${C_NONE}\n"
     fi
+
     [[ "$AUTO_OPEN" == "ON" ]] && open "$WELD_PATH"
     printf "${C_PRI}Press Enter...${C_NONE}"; read -r dummy
 }
