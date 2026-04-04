@@ -8,11 +8,6 @@ Features:
 
 **Weld** - weld chunks back into files/folders
 
-
-
-
-*Settings*
-
 **Unit** - changes the Unit when slicing (KB, MB, GB)
 
 **Auto-Open** - automatically open Finder after slicing/welding
