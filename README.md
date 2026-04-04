@@ -14,7 +14,7 @@ Features:
 
 **Change Slice Path** - change the path where sliced files/folders end up at
 
-**Change Weld Path** - change the path where welded files/folders end up at </sub>
+**Change Weld Path** - change the path where welded files/folders end up at
 
 
 
