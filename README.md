@@ -6,20 +6,20 @@ Features:
 
 <sub>**Slice** - slice file/folders into chunks
 
-**Weld** - weld chunks back into files/folders
+<sub>**Weld** - weld chunks back into files/folders
 
-**Unit** - changes the Unit when slicing (KB, MB, GB)
+<sub>**Unit** - changes the Unit when slicing (KB, MB, GB)
 
-**Auto-Open** - automatically open Finder after slicing/welding
+<sub>**Auto-Open** - automatically open Finder after slicing/welding
 
-**Change Slice Path** - change the path where sliced files/folders end up at
+<sub>**Change Slice Path** - change the path where sliced files/folders end up at
 
-**Change Weld Path** - change the path where welded files/folders end up at
-
-
+<sub>**Change Weld Path** - change the path where welded files/folders end up at
 
 
-_Install:_
+
+
+Install:
 
 `brew tap poispro/chunker`
 
