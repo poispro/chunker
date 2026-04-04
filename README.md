@@ -3,7 +3,7 @@ Chunker
 A lightweight CLI tool to slice large files/apps into chunks (and unslice them back) for Discord or Cloud uploads.
 
 <ins>**Features:**
-
+#8db600
 `Slice - slice file/folders into chunks`
 
 `Weld - weld chunks back into files/folders`
