@@ -1,55 +1,135 @@
 #!/bin/bash
 
-# Define a distinct folder name to avoid conflict with the script file
-BASE_DIR="$HOME/Chunker_Data"
-ZIP_DIR="$BASE_DIR/Zip"
-UNZIP_DIR="$BASE_DIR/Unzip"
+CONFIG_DIR="$HOME/ChunkerData"
+CONFIG_FILE="$CONFIG_DIR/.chunker_conf"
+C_CYAN='\033[0;96m'; C_GREEN='\033[0;92m'; C_RED='\033[0;91m'; C_NONE='\033[0m'
+D_UNIT="MB"; D_AUTO="ON"; D_SLICE="$CONFIG_DIR/Slice"; D_WELD="$CONFIG_DIR/Weld"
 
-# Create the folders
-mkdir -p "$ZIP_DIR" "$UNZIP_DIR"
+load_config() {
+    mkdir -p "$CONFIG_DIR" "$D_SLICE" "$D_WELD"
+    if [ -f "$CONFIG_FILE" ]; then 
+        source "$CONFIG_FILE"
+    else 
+        UNIT="$D_UNIT"; AUTO_OPEN="$D_AUTO"; SLICE_PATH="$D_SLICE"; WELD_PATH="$D_WELD"
+    fi
+    mkdir -p "$SLICE_PATH" "$WELD_PATH"
+}
 
-echo "--- Chunker ---"
-echo "1. Slice"
-echo "2. Rejoin"
-read -p "Choose (1/2): " CHOICE
+save_config() {
+    mkdir -p "$CONFIG_DIR"
+    { 
+        echo "UNIT=\"$UNIT\""
+        echo "AUTO_OPEN=\"$AUTO_OPEN\""
+        echo "SLICE_PATH=\"$SLICE_PATH\""
+        echo "WELD_PATH=\"$WELD_PATH\""
+    } > "$CONFIG_FILE"
+}
 
-if [ "$CHOICE" == "1" ]; then
-    read -p "Drag file/folder here to SLICE: " SRC_PATH
-    # Clean the path from drag-and-drop quotes/spaces
-    SRC_PATH=$(echo "$SRC_PATH" | sed "s/'//g; s/\"//g; s/ $//")
+run_main_menu() {
+    local selected=0
+    local options=("Slice" "Weld" "Settings" "Exit")
+    while true; do
+        tput civis
+        printf "\033[H\033[J${C_CYAN}--- CHUNKER v2.0.0 ---${C_NONE}\n\n"
+        for i in "${!options[@]}"; do
+            if [[ $i -eq $selected ]]; then printf "${C_CYAN}> %s${C_NONE}\n" "${options[$i]}"
+            else printf "  %s\n" "${options[$i]}"; fi
+        done
+        read -rsn1 key
+        [[ $key == $'\x1b' ]] && { read -rsn2 key; [[ $key == "[A" ]] && ((selected--)); [[ $key == "[B" ]] && ((selected++)); }
+        [[ $selected -lt 0 ]] && selected=3
+        [[ $selected -gt 3 ]] && selected=0
+        [[ $key == "" ]] && tput cnorm && return $selected
+    done
+}
+
+run_settings_menu() {
+    local selected=0
+    while true; do
+        local options=("Back" "Unit: $UNIT" "Auto-Open: $AUTO_OPEN" "Change Slice Path" "Change Weld Path" "Restore Defaults")
+        tput civis
+        printf "\033[H\033[J${C_CYAN}--- SETTINGS ---${C_NONE}\n\n"
+        for i in "${!options[@]}"; do
+            if [[ $i -eq $selected ]]; then printf "${C_CYAN}> %s${C_NONE}\n" "${options[$i]}"
+            else printf "  %s\n" "${options[$i]}"; fi
+        done
+        read -rsn1 key
+        [[ $key == $'\x1b' ]] && { read -rsn2 key; [[ $key == "[A" ]] && ((selected--)); [[ $key == "[B" ]] && ((selected++)); }
+        [[ $selected -lt 0 ]] && selected=5
+        [[ $selected -gt 5 ]] && selected=0
+        if [[ $key == "" ]]; then
+            tput cnorm
+            case $selected in
+                0) return ;;
+                1) [[ "$UNIT" == "KB" ]] && UNIT="MB" || { [[ "$UNIT" == "MB" ]] && UNIT="GB" || UNIT="KB"; }; save_config ;;
+                2) [[ "$AUTO_OPEN" == "ON" ]] && AUTO_OPEN="OFF" || AUTO_OPEN="ON"; save_config ;;
+                3) read -p "New Slice Path: " p; [[ -n "$p" ]] && SLICE_PATH=$(echo "$p" | sed "s/'//g; s/\"//g; s/ $//"); save_config ;;
+                4) read -p "New Weld Path: " p; [[ -n "$p" ]] && WELD_PATH=$(echo "$p" | sed "s/'//g; s/\"//g; s/ $//"); save_config ;;
+                5) UNIT="$D_UNIT"; AUTO_OPEN="$D_AUTO"; SLICE_PATH="$D_SLICE"; WELD_PATH="$D_WELD"; save_config ;;
+            esac
+        fi
+    done
+}
+
+do_slice() {
+    printf "\033[H\033[J${C_CYAN}--- SLICE ---${C_NONE}\n"
+    read -p "Drag source: " SRC; SRC=$(echo "$SRC" | sed "s/'//g; s/\"//g; s/ $//")
+    [[ ! -e "$SRC" ]] && return
+    read -p "Size ($UNIT): " VAL
+    case "$UNIT" in "KB") M=1000 ;; "MB") M=1000000 ;; "GB") M=1000000000 ;; esac
+    B=$(echo "$VAL * $M" | bc | cut -d'.' -f1)
     
-    read -p "Chunk size in MB (e.g., 10 or 3800): " MB_SIZE
+    BNAME=$(basename "$SRC")
+    DIRNAME=$(dirname "$SRC")
+    DEST="$SLICE_PATH/$BNAME-chunks"
+    mkdir -p "$DEST"
     
-    # Get the parent directory and the actual file name
-    DIR_NAME=$(dirname "$SRC_PATH")
-    NAME=$(basename "$SRC_PATH")
-    FINAL_DEST="$ZIP_DIR/$NAME-chunks"
-    mkdir -p "$FINAL_DEST"
-
-    echo "Slicing $NAME into ${MB_SIZE}MB chunks..."
+    printf "\n${C_GREEN}Slicing...${C_NONE}\n"
+    # Added --format=posix to fix 'Special header too large' error
+    tar --format=posix -czf - -C "$DIRNAME" "$BNAME" | split -a 5 -b "$B" - "$DEST/chunk_"
     
-    # -C jumps into the parent dir so 'tar' doesn't save the full Mac path
-    tar -czf - -C "$DIR_NAME" "$NAME" | split -b "${MB_SIZE}m" - "$FINAL_DEST/chunk_"
+    [[ $? -eq 0 ]] && printf "\n${C_GREEN}DONE!${C_NONE}\n" || printf "\n${C_RED}FAILED!${C_NONE}\n"
+    [[ "$AUTO_OPEN" == "ON" ]] && open "$DEST"
+    read -p "Press Enter..." dummy
+}
+
+do_weld() {
+    printf "\033[H\033[J${C_CYAN}--- WELD ---${C_NONE}\n"
+    read -p "Drag folder: " FLD; FLD=$(echo "$FLD" | sed "s/'//g; s/\"//g; s/ $//")
+    [[ ! -d "$FLD" ]] && return
     
-    echo "Success! Chunks are in: $ZIP_DIR/$NAME-chunks"
-
-elif [ "$CHOICE" == "2" ]; then
-    read -p "Drag CHUNK FOLDER here to REJOIN: " FOLDER_PATH
-    # Clean the path
-    FOLDER_PATH=$(echo "$FOLDER_PATH" | sed "s/'//g; s/\"//g; s/ $//")
-
-    # Verify if it's a real folder
-    if [ ! -d "$FOLDER_PATH" ]; then
-        echo "Error: That folder doesn't exist!"
-        exit 1
+    mkdir -p "$WELD_PATH"
+    TEMP_WELD="$WELD_PATH/processing_weld.tgz"
+    printf "\n${C_GREEN}Welding...${C_NONE}\n"
+    
+    find "$FLD" -name "chunk_*" -print0 | sort -zV | xargs -0 cat > "$TEMP_WELD"
+    
+    if [[ -s "$TEMP_WELD" ]]; then
+        # POSIX format is automatically detected during extraction
+        tar -xzf "$TEMP_WELD" -C "$WELD_PATH"
+        RES=$?
+        rm "$TEMP_WELD"
+    else
+        RES=1
     fi
 
-    echo "Rejoining chunks from $(basename "$FOLDER_PATH")..."
-    
-    # Joins the chunks and extracts directly into the Unzip folder
-    cat "$FOLDER_PATH"/chunk_* | tar -xzf - -C "$UNZIP_DIR"
-    
-    echo "Done! Check your files in: $UNZIP_DIR"
-fi
+    if [[ $RES -eq 0 ]]; then
+        printf "\n${C_GREEN}DONE!${C_NONE}\n"
+        [[ "$AUTO_OPEN" == "ON" ]] && open "$WELD_PATH"
+    else
+        printf "\n${C_RED}FAILED: Header error or corrupted archive.${C_NONE}\n"
+        [ -f "$TEMP_WELD" ] && rm "$TEMP_WELD"
+    fi
+    read -p "Press Enter..." dummy
+}
 
-
+load_config
+while true; do
+    run_main_menu
+    case $? in
+        0) do_slice ;;
+        1) do_weld ;;
+        2) run_settings_menu ;;
+        3) printf "\033[H\033[J"; exit 0 ;;
+    esac
+done
