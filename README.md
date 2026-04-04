@@ -2,7 +2,7 @@ Chunker
 
 A lightweight CLI tool to slice large files/apps into chunks (and unslice them back) for Discord or Cloud uploads.
 
-**Features:**
+<ins>**Features:**
 
 <sub>**Slice** - slice file/folders into chunks
 
@@ -19,7 +19,7 @@ A lightweight CLI tool to slice large files/apps into chunks (and unslice them b
 
 
 
-**Install:**
+<ins>**Install:**
 
 `brew tap poispro/chunker`
 
