@@ -232,7 +232,7 @@ run_restore_defaults() {
 }
 
 do_slice() {
-    printf "${C_BG}\033[H\033[J${C_PRI}--- INDUSTRIAL SLICE ---${C_NONE}\n"
+    printf "${C_BG}\033[H\033[J${C_PRI}--- SLICE ---${C_NONE}\n"
     printf "${C_PRI}Drag source: ${C_NONE}"; read -r SRC
     SRC=$(echo "$SRC" | sed "s/'//g; s/\"//g; s/[[:space:]]*$//; s/\\\\//g")
     [[ ! -e "$SRC" ]] && return
@@ -279,7 +279,7 @@ do_slice() {
 }
 
 do_weld() {
-    printf "${C_BG}\033[H\033[J${C_PRI}--- BARE METAL WELD ---${C_NONE}\n"
+    printf "${C_BG}\033[H\033[J${C_PRI}--- WELD ---${C_NONE}\n"
     printf "${C_PRI}Drag folder: ${C_NONE}"; read -r FLD
     
     FLD=$(echo "$FLD" | sed "s/'//g; s/\"//g; s/[[:space:]]*$//; s/\\\\//g")
