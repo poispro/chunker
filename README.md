@@ -21,6 +21,6 @@ Features:
 
 **Install:**
 
-_brew tap poispro/chunker_
+`_brew tap poispro/chunker_`
 
 _brew install chunker_
